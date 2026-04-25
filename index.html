@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 콘텐츠 자동생성기</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1814;
+    --surface2: #242018;
+    --border: #3a3428;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-dim: #7a6330;
+    --text: #e8dcc8;
+    --text-dim: #8a7d68;
+    --red: #c94c4c;
+    --green: #4caa6e;
+    --blue: #4c7ec9;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── 배경 패턴 ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.06) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(58,52,40,0.3) 39px, rgba(58,52,40,0.3) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(58,52,40,0.15) 39px, rgba(58,52,40,0.15) 40px);
+    pointer-events: none; z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  /* ── 헤더 ── */
+  header {
+    text-align: center; padding: 30px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  header h1 {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 26px; font-weight: 700;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+  }
+  header p { color: var(--text-dim); margin-top: 6px; font-size: 13px; }
+
+  /* ── 탭 ── */
+  .tabs {
+    display: flex; gap: 4px;
+    background: var(--surface); padding: 6px;
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1; padding: 9px 12px;
+    background: transparent; border: none;
+    color: var(--text-dim); font-size: 13px;
+    font-family: 'Noto Sans KR', sans-serif;
+    border-radius: 7px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--gold); color: #1a1410;
+    font-weight: 700;
+  }
+  .tab-btn:hover:not(.active) { color: var(--gold); background: rgba(201,168,76,0.08); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── 카드 ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 15px; font-weight: 600;
+    color: var(--gold); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title span { font-size: 18px; }
+
+  /* ── 폼 요소 ── */
+  label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; padding: 9px 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--gold-dim); }
+  textarea { resize: vertical; line-height: 1.6; }
+  select option { background: var(--surface2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-group { margin-bottom: 12px; }
+
+  /* ── 버튼 ── */
+  .btn {
+    padding: 10px 20px; border: none; border-radius: 7px;
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px;
+    font-weight: 700; cursor: pointer; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), #a87d30);
+    color: #1a1410;
+  }
+  .btn-gold:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .btn-outline:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover { filter: brightness(1.1); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+  .btn-full { width: 100%; justify-content: center; padding: 13px; font-size: 14px; }
+
+  /* ── API 키 섹션 ── */
+  .api-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── 씬 목록 ── */
+  .scene-list { display: flex; flex-direction: column; gap: 8px; max-height: 450px; overflow-y: auto; }
+  .scene-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+    display: flex; align-items: flex-start; gap: 10px;
+    transition: border-color 0.2s;
+  }
+  .scene-item:hover { border-color: var(--gold-dim); }
+  .scene-item.done { border-color: var(--green); opacity: 0.7; }
+  .scene-item.generating { border-color: var(--gold); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+  .scene-num {
+    min-width: 28px; height: 28px; border-radius: 50%;
+    background: var(--border); display: flex; align-items: center;
+    justify-content: center; font-size: 12px; font-weight: 700;
+    color: var(--text-dim); flex-shrink: 0; margin-top: 2px;
+  }
+  .scene-content { flex: 1; }
+  .scene-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .scene-prompt { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  .scene-status { font-size: 11px; margin-top: 4px; }
+  .scene-status.ok { color: var(--green); }
+  .scene-status.err { color: var(--red); }
+  .scene-status.ing { color: var(--gold); }
+
+  /* ── 캐릭터 카드 ── */
+  .char-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .char-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+  }
+  .char-id { font-size: 11px; color: var(--gold-dim); margin-bottom: 4px; }
+  .char-name { font-size: 14px; font-weight: 700; color: var(--gold-light); margin-bottom: 6px; }
+  .char-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag {
+    background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.2);
+    color: var(--gold-dim); font-size: 10px; padding: 2px 7px; border-radius: 20px;
+  }
+
+  /* ── 진행바 ── */
+  .progress-wrap { margin: 14px 0; }
+  .progress-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: var(--text-dim); }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    border-radius: 3px; transition: width 0.4s ease;
+  }
+
+  /* ── 로그 ── */
+  .log-box {
+    background: #0a0908; border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; height: 160px;
+    overflow-y: auto; font-family: monospace; font-size: 12px;
+    line-height: 1.7; color: var(--text-dim);
+  }
+  .log-box .log-ok { color: var(--green); }
+  .log-box .log-err { color: var(--red); }
+  .log-box .log-info { color: var(--gold-dim); }
+
+  /* ── 이미지 갤러리 ── */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .gallery-item {
+    aspect-ratio: 3/4; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; position: relative;
+  }
+  .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+  .gallery-item .gallery-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.7); padding: 5px 8px;
+    font-size: 10px; color: var(--text-dim);
+  }
+  .gallery-empty {
+    grid-column: 1/-1; text-align: center; padding: 40px;
+    color: var(--text-dim); font-size: 13px;
+  }
+
+  /* ── 배지 ── */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge-gold { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid var(--gold-dim); }
+  .badge-green { background: rgba(76,170,110,0.15); color: var(--green); border: 1px solid var(--green); }
+
+  /* ── 분리선 ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* ── 스크롤바 ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── 모달 ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+    width: 90%; max-width: 500px;
+  }
+  .modal h3 { font-family: 'Noto Serif KR', serif; color: var(--gold); margin-bottom: 14px; }
+
+  /* ── 툴팁 ── */
+  .tip {
+    background: rgba(201,168,76,0.08); border-left: 3px solid var(--gold-dim);
+    padding: 10px 14px; border-radius: 0 7px 7px 0;
+    font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-bottom: 12px;
+  }
+
+  .flex-end { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .mt8 { margin-top: 8px; }
+  .mt12 { margin-top: 12px; }
+  .mb0 { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 헤더 -->
+  <header>
+    <h1>⚙️ AI 콘텐츠 자동생성기</h1>
+    <p>대본 생성 → 씬 프롬프트 조합 → ComfyUI 이미지 자동 생성</p>
+  </header>
+
+  <!-- 탭 -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('settings')">⚙️ 설정</button>
+    <button class="tab-btn" onclick="switchTab('story')">📝 대본 생성</button>
+    <button class="tab-btn" onclick="switchTab('scenes')">🎬 씬 관리</button>
+    <button class="tab-btn" onclick="switchTab('generate')">🖼️ 이미지 생성</button>
+    <button class="tab-btn" onclick="switchTab('gallery')">🗂️ 갤러리</button>
+  </div>
+
+  <!-- ══════════════════════════════ 탭1: 설정 ══════════════════════════════ -->
+  <div id="tab-settings" class="tab-panel active">
+
+    <div class="card">
+      <div class="card-title"><span>🔑</span> API 키 설정</div>
+      <div class="api-row">
+        <div class="form-group mb0">
+          <label>Claude API Key (대본 생성용)</label>
+          <input type="text" id="claudeKey" placeholder="sk-ant-api03-..." />
+        </div>
+        <div class="form-group mb0">
+          <label>Fal.ai API Key (이미지 생성용)</label>
+          <input type="text" id="falKey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:xxxx..." />
+        </div>
+      </div>
+      <div class="tip mt12">
+        💡 Claude API 키 → <strong>console.anthropic.com</strong> 에서 발급<br>
+        💡 Fal.ai API 키 → <strong>fal.ai</strong> 가입 후 Dashboard → API Keys 에서 발급 (가입 시 무료 크레딧 $1 제공)
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>🎨</span> 이미지 스타일 프롬프트</div>
+      <div class="form-group">
+        <label>스타일 선택</label>
+        <select id="styleSelect" onchange="applyStylePreset()">
+          <option value="realistic">실사 (포토리얼)</option>
+          <option value="illustration">일러스트</option>
+          <option value="custom">직접 입력</option>
+        </select>
+      </div>
+      <div class="form-group mb0">
+        <label>스타일 프롬프트 (전체 씬에 공통 적용)</label>
+        <textarea id="stylePrompt" rows="5"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>👥</span> 캐릭터 설정표</div>
+      <div class="tip">
+        💡 아래 형식으로 입력하세요: <code>CHAR_A_이름 (한글이름) — 나이 성별 | 신분 | 시대 | 헤어 | 눈 | 복장 | 신발</code>
+      </div>
+      <textarea id="charSheet" rows="6" placeholder="CHAR_A_NRK (나리꽃) — 16세 여성 | 천민 처녀 | 조선 시대 | 기둥머리 | 또렷하고 강인한 눈 | 소박한 베 저고리 | 짚신"></textarea>
+      <button class="btn btn-outline mt8" onclick="parseCharacters()">캐릭터 파싱 & 미리보기</button>
+      <div id="charPreview" class="char-grid mt8" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>⚙️</span> 생성 설정</div>
+      <div class="form-row">
+        <div class="form-group mb0">
+          <label>프롬프트 제출 간격 (초)</label>
+          <input type="number" id="delay" value="15" min="5" max="60" />
+        </div>
+        <div class="form-group mb0">
+          <label>이미지 가로 크기 (px)</label>
+          <input type="number" id="imgWidth" value="512" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group mb0">
+          <label>이미지 세로 크기 (px)</label>
+          <input type="number" id="imgHeight" value="768" />
+        </div>
+        <div class="form-group mb0">
+          <label>스텝 수 (기본 20)</label>
+          <input type="number" id="steps" value="20" min="10" max="50" />
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-gold btn-full" onclick="saveSettings()">💾 설정 저장</button>
+  </div>
+
+  <!-- ══════════════════════════════ 탭2: 대본 생성 ══════════════════════════════ -->
+  <div id="tab-story" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title"><span>📖</span> 스토리 기획</div>
+      <div class="form-row">
+        <div class="form-group mb0">
+          <label>프로젝트 제목</label>
+          <input type="text" id="projectTitle" placeholder="활하나로 조선을 뒤흔든 산골소녀" />
+        </div>
+        <div class="form-group mb0">
+          <label>장르/배경</label>
+          <input type="text" id="genre" placeholder="조선시대 사극 로맨스" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>스토리 개요 (줄거리 요약)</label>
+        <textarea id="storyOutline" rows="4" placeholder="산골 출신의 천민 소녀 나리꽃이 조선을 뒤흔드는 이야기. 사또의 아들 준석과의 신분을 초월한 사랑, 그리고 조선 사회의 불의에 맞서는 과정을 담은 드라마."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group mb0">
+          <label>생성할 씬 수</label>
+          <input type="number" id="sceneCount" value="10" min="3" max="60" />
+        </div>
+        <div class="form-group mb0">
+          <label>씬당 대사 분량</label>
+          <select id="sceneLength">
+            <option value="short">짧게 (숏폼용)</option>
+            <option value="medium" selected>중간 (롱폼용)</option>
+            <option value="long">길게 (상세 묘사)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>🤖</span> Claude 대본 생성</div>
+      <div class="tip">
+        💡 Claude가 스토리 개요를 바탕으로 씬별 대본과 이미지 프롬프트를 자동 생성해요.
+      </div>
+      <button class="btn btn-gold btn-full" id="genStoryBtn" onclick="generateStory()">
+        ✨ Claude로 대본 + 씬 프롬프트 자동 생성
+      </button>
+      <div id="storyProgress" style="display:none" class="mt12">
+        <div class="progress-wrap">
+          <div class="progress-label"><span>대본 생성 중...</span><span id="storyPct">0%</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="storyBar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="storyResultCard" style="display:none">
+      <div class="card-title flex-between">
+        <span><span>📄</span> 생성된 대본</span>
+        <span id="sceneBadge" class="badge badge-gold">0 씬</span>
+      </div>
+      <textarea id="storyResult" rows="12" readonly></textarea>
+      <div class="flex-end">
+        <button class="btn btn-outline" onclick="editStory()">✏️ 수정</button>
+        <button class="btn btn-gold" onclick="applyToScenes()">→ 씬 목록으로 적용</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ 탭3: 씬 관리 ══════════════════════════════ -->
+  <div id="tab-scenes" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title flex-between">
+        <span><span>🎬</span> 씬 목록</span>
+        <span id="sceneCountBadge" class="badge badge-gold">0개</span>
+      </div>
+      <div class="flex-end mb0" style="margin-bottom:12px">
+        <button class="btn btn-outline" onclick="clearScenes()">🗑️ 전체 삭제</button>
+        <button class="btn btn-outline" onclick="exportScenes()">📤 내보내기</button>
+        <button class="btn btn-gold" onclick="document.getElementById('sceneImport').click()">📥 불러오기</button>
+        <input type="file" id="sceneImport" accept=".txt,.json" style="display:none" onchange="importScenes(event)" />
+      </div>
+      <div id="sceneList" class="scene-list">
+        <div style="text-align:center;padding:30px;color:var(--text-dim)">
+          씬이 없어요. 대본 탭에서 생성하거나 직접 추가해 주세요.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>➕</span> 씬 직접 추가</div>
+      <div class="form-group">
+        <label>씬 제목</label>
+        <input type="text" id="newSceneTitle" placeholder="씬 1 — 나리꽃, 산에서 사또 행렬을 목격하다" />
+      </div>
+      <div class="form-group mb0">
+        <label>이미지 프롬프트 (영문 권장)</label>
+        <textarea id="newScenePrompt" rows="3" placeholder="A young girl in traditional Korean clothing watching a government official's procession from the mountain forest, dramatic lighting..."></textarea>
+      </div>
+      <button class="btn btn-gold mt8" onclick="addScene()">+ 씬 추가</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ 탭4: 이미지 생성 ══════════════════════════════ -->
+  <div id="tab-generate" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title"><span>🖼️</span> Fal.ai 이미지 자동 생성</div>
+      <div class="tip">
+        💡 Fal.ai API를 사용해서 이미지를 자동 생성해요. 설정 탭에서 API 키를 먼저 입력해 주세요!<br>
+        💡 이미지 1장당 약 <strong>$0.003 ~ $0.01 (약 4~14원)</strong> 수준이에요.
+      </div>
+      <div class="flex-between mt8" style="margin-bottom:14px">
+        <div>
+          <span id="genSceneCount" class="badge badge-gold">0개 씬</span>
+          <span style="margin-left:8px;font-size:12px;color:var(--text-dim)">생성 대기 중</span>
+        </div>
+        <button class="btn btn-outline" onclick="testFalConnection()">🔌 연결 테스트</button>
+      </div>
+      <button class="btn btn-green btn-full" id="startGenBtn" onclick="startGeneration()">
+        🚀 이미지 생성 시작
+      </button>
+      <button class="btn btn-red btn-full mt8" id="stopGenBtn" onclick="stopGeneration()" style="display:none">
+        ⏹ 생성 중단
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>📊</span> 생성 진행 상황</div>
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span id="progressText">대기 중</span>
+          <span id="progressPct">0 / 0</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="mainProgressBar" style="width:0%"></div></div>
+      </div>
+      <div class="log-box" id="logBox">
+        <span class="log-info">시스템 준비 완료. 이미지 생성 시작 버튼을 눌러주세요.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>📋</span> 씬별 진행 현황</div>
+      <div id="genSceneList" class="scene-list" style="max-height:300px">
+        <div style="text-align:center;padding:20px;color:var(--text-dim)">씬을 먼저 추가해 주세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ 탭5: 갤러리 ══════════════════════════════ -->
+  <div id="tab-gallery" class="tab-panel">
+    <div class="card">
+      <div class="card-title flex-between">
+        <span><span>🗂️</span> 생성된 이미지</span>
+        <span id="galleryCount" class="badge badge-green">0장</span>
+      </div>
+      <div class="tip">
+        💡 생성 완료 후 <strong>ZIP 다운로드</strong> 버튼을 누르면 전체 이미지가 한 번에 저장돼요.<br>
+        💡 압축 풀고 → Flow의 <strong>"새로 업로드"</strong> 버튼으로 폴더째 올리면 끝!
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-gold" onclick="downloadAllZip()" id="zipBtn">
+          📦 전체 ZIP 다운로드 (Flow용)
+        </button>
+        <button class="btn btn-outline" onclick="downloadPromptsText()">
+          📄 프롬프트 목록 저장
+        </button>
+      </div>
+      <div id="galleryGrid" class="gallery">
+        <div class="gallery-empty">아직 생성된 이미지가 없어요.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 씬 편집 모달 -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>씬 편집</h3>
+    <div class="form-group">
+      <label>씬 제목</label>
+      <input type="text" id="editTitle" />
+    </div>
+    <div class="form-group mb0">
+      <label>이미지 프롬프트</label>
+      <textarea id="editPrompt" rows="4"></textarea>
+    </div>
+    <div class="flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-gold" onclick="saveEditScene()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  앱 상태
+// ════════════════════════════════════════
+const state = {
+  scenes: [],
+  characters: [],
+  isGenerating: false,
+  stopFlag: false,
+  generated: [],
+  editingIdx: -1,
+};
+
+// ════════════════════════════════════════
+//  스타일 프리셋
+// ════════════════════════════════════════
+const stylePresets = {
+  realistic: `This image employs a cinematic aesthetic with a warm, golden-hour lighting scheme. The overall color palette is rich and saturated. The lighting is characterized by strong backlighting, creating a beautiful rim light effect on the figures. The image quality is high-resolution, sharp in focus areas, rendered with a detailed, realistic texture, typical of professional digital photography or cinematography, evoking a historical or period drama feel. Not an illustration, but a photorealistic image generation. [일러스트 아님, 실사 이미지 생성]`,
+  illustration: `The image is rendered in a detailed, vibrant illustration style reminiscent of high-quality animation or comic book art, specifically evoking East Asian historical settings. The aesthetic employs clean, sharp lines and smooth, cel-shaded coloring. The color palette is rich and saturated, featuring deep blues, greens, and reds. Lighting is dramatic and warm, suggesting a golden hour. The overall mood is stylized and narrative-driven, blending historical accuracy in setting with a stylized, expressive character design.`,
+};
+
+// ════════════════════════════════════════
+//  초기화
+// ════════════════════════════════════════
+window.onload = () => {
+  loadSettings();
+  applyStylePreset();
+  renderScenes();
+  updateGenTab();
+};
+
+// ════════════════════════════════════════
+//  탭 전환
+// ════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['settings','story','scenes','generate','gallery'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'generate') updateGenTab();
+  if (name === 'gallery') renderGallery();
+}
+
+// ════════════════════════════════════════
+//  설정 저장 / 불러오기
+// ════════════════════════════════════════
+function saveSettings() {
+  const s = {
+    claudeKey: document.getElementById('claudeKey').value,
+    falKey: document.getElementById('falKey').value,
+    stylePrompt: document.getElementById('stylePrompt').value,
+    charSheet: document.getElementById('charSheet').value,
+    delay: document.getElementById('delay').value,
+    imgWidth: document.getElementById('imgWidth').value,
+    imgHeight: document.getElementById('imgHeight').value,
+    steps: document.getElementById('steps').value,
+  };
+  localStorage.setItem('flowSettings', JSON.stringify(s));
+  addLog('✅ 설정이 저장되었어요.', 'ok');
+  alert('설정 저장 완료!');
+}
+
+function loadSettings() {
+  const raw = localStorage.getItem('flowSettings');
+  if (!raw) { applyStylePreset(); return; }
+  const s = JSON.parse(raw);
+  if (s.claudeKey) document.getElementById('claudeKey').value = s.claudeKey;
+  if (s.falKey) document.getElementById('falKey').value = s.falKey;
+  if (s.stylePrompt) document.getElementById('stylePrompt').value = s.stylePrompt;
+  if (s.charSheet) document.getElementById('charSheet').value = s.charSheet;
+  if (s.delay) document.getElementById('delay').value = s.delay;
+  if (s.imgWidth) document.getElementById('imgWidth').value = s.imgWidth;
+  if (s.imgHeight) document.getElementById('imgHeight').value = s.imgHeight;
+  if (s.steps) document.getElementById('steps').value = s.steps;
+}
+
+function applyStylePreset() {
+  const v = document.getElementById('styleSelect').value;
+  if (v !== 'custom') {
+    document.getElementById('stylePrompt').value = stylePresets[v] || '';
+  }
+}
+
+// ════════════════════════════════════════
+//  캐릭터 파싱
+// ════════════════════════════════════════
+function parseCharacters() {
+  const raw = document.getElementById('charSheet').value;
+  const lines = raw.split('\n').filter(l => l.trim().startsWith('CHAR_'));
+  state.characters = lines.map(line => {
+    const idMatch = line.match(/^(CHAR_\w+)\s*\(([^)]+)\)/);
+    const id = idMatch ? idMatch[1] : 'CHAR_X';
+    const name = idMatch ? idMatch[2] : '캐릭터';
+    const parts = line.split('|').map(p => p.trim());
+    return { id, name, parts, raw: line };
+  });
+
+  const preview = document.getElementById('charPreview');
+  if (state.characters.length === 0) { preview.style.display = 'none'; return; }
+
+  preview.style.display = 'grid';
+  preview.innerHTML = state.characters.map(c => `
+    <div class="char-card">
+      <div class="char-id">${c.id}</div>
+      <div class="char-name">${c.name}</div>
+      <div class="char-tags">
+        ${c.parts.slice(0,5).map(p => `<span class="tag">${p.replace(/^.*?—\s*/,'').substring(0,20)}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════
+//  대본 생성 (Claude API)
+// ════════════════════════════════════════
+async function generateStory() {
+  const apiKey = document.getElementById('claudeKey').value.trim();
+  if (!apiKey) { alert('Claude API 키를 먼저 입력해 주세요!'); return; }
+
+  const title = document.getElementById('projectTitle').value || '조선 드라마';
+  const genre = document.getElementById('genre').value || '사극';
+  const outline = document.getElementById('storyOutline').value;
+  const count = parseInt(document.getElementById('sceneCount').value) || 10;
+  const length = document.getElementById('sceneLength').value;
+  const charSheet = document.getElementById('charSheet').value;
+  const stylePrompt = document.getElementById('stylePrompt').value;
+
+  const lengthGuide = { short: '2-3문장', medium: '4-6문장', long: '8-10문장' }[length];
+
+  const prompt = `당신은 한국 드라마 콘텐츠 작가입니다.
+
+프로젝트: ${title}
+장르: ${genre}
+줄거리: ${outline}
+캐릭터:
+${charSheet}
+
+이미지 스타일:
+${stylePrompt.substring(0, 300)}
+
+위 정보를 바탕으로 ${count}개의 씬을 생성해 주세요.
+
+각 씬은 반드시 아래 JSON 형식으로만 출력하세요. 다른 텍스트는 절대 포함하지 마세요:
+
+[
+  {
+    "scene_num": 1,
+    "title": "씬 제목 (한글)",
+    "script": "대본 내용 (${lengthGuide})",
+    "image_prompt": "영문 이미지 프롬프트. 캐릭터 외모, 장소, 분위기, 조명, 구도 포함. 50-80단어"
+  }
+]`;
+
+  const btn = document.getElementById('genStoryBtn');
+  btn.disabled = true; btn.textContent = '⏳ 생성 중...';
+  document.getElementById('storyProgress').style.display = 'block';
+
+  // 가짜 진행바 애니메이션
+  let pct = 0;
+  const ticker = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 8, 85);
+    document.getElementById('storyBar').style.width = pct + '%';
+    document.getElementById('storyPct').textContent = Math.round(pct) + '%';
+  }, 400);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    clearInterval(ticker);
+    document.getElementById('storyBar').style.width = '100%';
+    document.getElementById('storyPct').textContent = '100%';
+
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.content[0].text;
+    document.getElementById('storyResult').value = text;
+    document.getElementById('storyResultCard').style.display = 'block';
+
+    // 씬 수 배지
+    try {
+      const jsonStr = text.match(/\[[\s\S]*\]/)?.[0];
+      if (jsonStr) {
+        const scenes = JSON.parse(jsonStr);
+        document.getElementById('sceneBadge').textContent = scenes.length + ' 씬';
+      }
+    } catch(e) {}
+
+  } catch(err) {
+    clearInterval(ticker);
+    alert('오류: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ Claude로 대본 + 씬 프롬프트 자동 생성';
+  }
+}
+
+function editStory() {
+  document.getElementById('storyResult').removeAttribute('readonly');
+  document.getElementById('storyResult').focus();
+}
+
+// ════════════════════════════════════════
+//  씬 목록 적용
+// ════════════════════════════════════════
+function applyToScenes() {
+  const raw = document.getElementById('storyResult').value;
+  const stylePrompt = document.getElementById('stylePrompt').value;
+
+  try {
+    const jsonStr = raw.match(/\[[\s\S]*\]/)?.[0];
+    if (!jsonStr) throw new Error('JSON을 찾을 수 없어요');
+    const scenes = JSON.parse(jsonStr);
+
+    state.scenes = scenes.map(s => ({
+      title: s.title || `씬 ${s.scene_num}`,
+      script: s.script || '',
+      prompt: (s.image_prompt || '') + '\n\n' + stylePrompt,
+      status: 'pending',
+    }));
+
+    renderScenes();
+    updateGenTab();
+    switchTab('scenes');
+    addLog(`✅ ${state.scenes.length}개 씬이 적용되었어요.`, 'ok');
+  } catch(e) {
+    alert('씬 파싱 오류: ' + e.message + '\n\n대본 형식을 확인해 주세요.');
+  }
+}
+
+// ════════════════════════════════════════
+//  씬 렌더링
+// ════════════════════════════════════════
+function renderScenes() {
+  const container = document.getElementById('sceneList');
+  document.getElementById('sceneCountBadge').textContent = state.scenes.length + '개';
+
+  if (state.scenes.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">씬이 없어요. 대본 탭에서 생성하거나 직접 추가해 주세요.</div>';
+    return;
+  }
+
+  container.innerHTML = state.scenes.map((s, i) => `
+    <div class="scene-item ${s.status === 'done' ? 'done' : ''}" id="scene-item-${i}">
+      <div class="scene-num">${i+1}</div>
+      <div class="scene-content">
+        <div class="scene-title">${s.title}</div>
+        <div class="scene-prompt">${s.prompt.substring(0,100)}...</div>
+        ${s.status === 'done' ? '<div class="scene-status ok">✅ 완료</div>' : ''}
+        ${s.status === 'error' ? '<div class="scene-status err">❌ 오류</div>' : ''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-outline" style="padding:5px 10px;font-size:11px" onclick="openEditModal(${i})">편집</button>
+        <button class="btn btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteScene(${i})">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addScene() {
+  const title = document.getElementById('newSceneTitle').value.trim();
+  const prompt = document.getElementById('newScenePrompt').value.trim();
+  if (!title || !prompt) { alert('제목과 프롬프트를 입력해 주세요.'); return; }
+
+  state.scenes.push({ title, prompt, status: 'pending' });
+  renderScenes();
+  updateGenTab();
+  document.getElementById('newSceneTitle').value = '';
+  document.getElementById('newScenePrompt').value = '';
+}
+
+function deleteScene(i) {
+  if (!confirm('이 씬을 삭제할까요?')) return;
+  state.scenes.splice(i, 1);
+  renderScenes();
+  updateGenTab();
+}
+
+function clearScenes() {
+  if (!confirm('모든 씬을 삭제할까요?')) return;
+  state.scenes = [];
+  renderScenes();
+  updateGenTab();
+}
+
+function exportScenes() {
+  const blob = new Blob([JSON.stringify(state.scenes, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'scenes.json'; a.click();
+}
+
+function importScenes(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (Array.isArray(data)) { state.scenes = data; renderScenes(); updateGenTab(); }
+      else alert('올바른 JSON 형식이 아니에요.');
+    } catch { alert('파일 읽기 오류'); }
+  };
+  reader.readAsText(file);
+}
+
+// ════════════════════════════════════════
+//  씬 편집 모달
+// ════════════════════════════════════════
+function openEditModal(i) {
+  state.editingIdx = i;
+  document.getElementById('editTitle').value = state.scenes[i].title;
+  document.getElementById('editPrompt').value = state.scenes[i].prompt;
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+  state.editingIdx = -1;
+}
+
+function saveEditScene() {
+  if (state.editingIdx < 0) return;
+  state.scenes[state.editingIdx].title = document.getElementById('editTitle').value;
+  state.scenes[state.editingIdx].prompt = document.getElementById('editPrompt').value;
+  closeModal(); renderScenes();
+}
+
+// ════════════════════════════════════════
+//  이미지 생성 탭 업데이트
+// ════════════════════════════════════════
+function updateGenTab() {
+  const count = state.scenes.length;
+  document.getElementById('genSceneCount').textContent = count + '개 씬';
+
+  const settings = JSON.parse(localStorage.getItem('flowSettings') || '{}');
+  document.getElementById('comfyUrlDisplay').textContent = settings.comfyUrl || 'http://127.0.0.1:8188';
+
+  const container = document.getElementById('genSceneList');
+  if (count === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim)">씬을 먼저 추가해 주세요.</div>';
+    return;
+  }
+  container.innerHTML = state.scenes.map((s,i) => `
+    <div class="scene-item ${s.status}" id="gen-scene-${i}">
+      <div class="scene-num">${i+1}</div>
+      <div class="scene-content">
+        <div class="scene-title">${s.title}</div>
+        <div class="scene-status ${s.status === 'done' ? 'ok' : s.status === 'error' ? 'err' : s.status === 'generating' ? 'ing' : ''}">
+          ${s.status === 'done' ? '✅ 완료' : s.status === 'error' ? '❌ 오류' : s.status === 'generating' ? '⏳ 생성 중...' : '⏸ 대기'}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════
+//  Fal.ai 연결 테스트
+// ════════════════════════════════════════
+async function testFalConnection() {
+  const settings = JSON.parse(localStorage.getItem('flowSettings') || '{}');
+  const falKey = settings.falKey || '';
+  if (!falKey) { addLog('❌ Fal.ai API 키를 먼저 설정 탭에서 입력해 주세요!', 'err'); return; }
+  addLog('🔌 Fal.ai 연결 테스트 중...', 'info');
+  try {
+    const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Key ' + falKey },
+      body: JSON.stringify({ prompt: 'test', image_size: 'portrait_4_3', num_images: 1 })
+    });
+    if (res.ok || res.status === 422) addLog('✅ Fal.ai 연결 성공! API 키가 유효해요.', 'ok');
+    else if (res.status === 401) addLog('❌ API 키가 올바르지 않아요. 다시 확인해 주세요.', 'err');
+    else addLog('⚠️ 연결 응답: ' + res.status, 'info');
+  } catch(e) {
+    addLog('❌ 연결 실패: ' + e.message, 'err');
+  }
+}
+
+// ════════════════════════════════════════
+//  이미지 생성 (Fal.ai API)
+// ════════════════════════════════════════
+async function startGeneration() {
+  if (state.scenes.length === 0) { alert('씬 목록이 비어있어요!'); return; }
+
+  const settings = JSON.parse(localStorage.getItem('flowSettings') || '{}');
+  const falKey = settings.falKey || '';
+  if (!falKey) { alert('Fal.ai API 키를 먼저 설정 탭에서 입력하고 저장해 주세요!'); return; }
+
+  const delay = parseInt(settings.delay || 5) * 1000;
+  const width = parseInt(settings.imgWidth || 512);
+  const height = parseInt(settings.imgHeight || 768);
+
+  // 이미지 사이즈 → Fal.ai 규격으로 변환
+  let imageSize = 'portrait_4_3';
+  if (width === height) imageSize = 'square';
+  else if (width > height) imageSize = 'landscape_4_3';
+  else imageSize = 'portrait_4_3';
+
+  state.isGenerating = true; state.stopFlag = false;
+  document.getElementById('startGenBtn').style.display = 'none';
+  document.getElementById('stopGenBtn').style.display = 'block';
+  document.getElementById('stopGenBtn').textContent = '⏹ 생성 중단';
+
+  addLog('🚀 Fal.ai 이미지 생성 시작!', 'ok');
+
+  const total = state.scenes.length;
+  let done = 0;
+
+  for (let i = 0; i < state.scenes.length; i++) {
+    if (state.stopFlag) { addLog('⏹ 생성이 중단되었어요.', 'info'); break; }
+
+    const scene = state.scenes[i];
+    scene.status = 'generating';
+    updateGenTab();
+    updateProgress(done, total, `씬 ${i+1} 생성 중: ${scene.title}`);
+    addLog(`📸 씬 ${i+1}/${total} — ${scene.title}`, 'info');
+
+    try {
+      const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Key ' + falKey
+        },
+        body: JSON.stringify({
+          prompt: scene.prompt,
+          image_size: imageSize,
+          num_inference_steps: 4,
+          num_images: 1,
+          enable_safety_checker: false
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(`HTTP ${res.status}: ${errData.detail || errData.message || '알 수 없는 오류'}`);
+      }
+
+      const data = await res.json();
+      const imgUrl = data.images?.[0]?.url;
+      if (!imgUrl) throw new Error('이미지 URL을 받지 못했어요');
+
+      // 이미지 blob으로 저장 (ZIP용)
+      const imgRes = await fetch(imgUrl);
+      const blob = await imgRes.blob();
+      scene.imageBlob = blob;
+      scene.imageUrl = URL.createObjectURL(blob);
+      scene.imageName = `scene_${String(i+1).padStart(3,'0')}_${scene.title.replace(/[^가-힣a-zA-Z0-9]/g,'_').substring(0,20)}.jpg`;
+      scene.status = 'done';
+
+      state.generated.push({ title: scene.title, url: scene.imageUrl, idx: i });
+      addLog(`  ✅ 씬 ${i+1} 완료!`, 'ok');
+      done++;
+      updateProgress(done, total);
+
+    } catch(e) {
+      scene.status = 'error';
+      addLog(`  ❌ 씬 ${i+1} 오류: ${e.message}`, 'err');
+    }
+
+    updateGenTab();
+
+    if (i < state.scenes.length - 1 && !state.stopFlag) {
+      addLog(`  ⏱ ${delay/1000}초 대기 중...`, 'info');
+      await sleep(delay);
+    }
+  }
+
+  state.isGenerating = false;
+  document.getElementById('startGenBtn').style.display = 'block';
+  document.getElementById('stopGenBtn').style.display = 'none';
+  addLog(`🎉 완료! 총 ${done}개 이미지 생성됨. 갤러리 탭에서 확인 후 ZIP 다운로드 하세요!`, 'ok');
+  updateProgress(done, total, `생성 완료! ${done}개`);
+}
+
+function stopGeneration() {
+  state.stopFlag = true;
+  document.getElementById('stopGenBtn').textContent = '중단 중...';
+}
+
+// ════════════════════════════════════════
+//  ZIP 다운로드 (Flow용)
+// ════════════════════════════════════════
+async function downloadAllZip() {
+  const done = state.scenes.filter(s => s.imageBlob);
+  if (done.length === 0) { alert('먼저 이미지를 생성해 주세요!'); return; }
+
+  const btn = document.getElementById('zipBtn');
+  btn.disabled = true; btn.textContent = '⏳ ZIP 만드는 중...';
+
+  try {
+    // JSZip 동적 로드
+    if (!window.JSZip) {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    }
+
+    const zip = new JSZip();
+    const folder = zip.folder('flow_images');
+
+    // 프롬프트 목록도 함께 넣기
+    let promptText = '=== Flow 이미지 생성 프롬프트 목록 ===\n\n';
+    done.forEach((s, i) => {
+      folder.file(s.imageName, s.imageBlob);
+      promptText += `[씬 ${i+1}] ${s.title}\n${s.prompt}\n\n`;
+    });
+    folder.file('_프롬프트_목록.txt', promptText);
+
+    const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `flow_images_${done.length}장.zip`;
+    a.click();
+
+    addLog(`📦 ZIP 다운로드 완료! ${done.length}개 이미지 + 프롬프트 목록 포함`, 'ok');
+  } catch(e) {
+    alert('ZIP 생성 오류: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '📦 전체 ZIP 다운로드 (Flow용)';
+  }
+}
+
+// 프롬프트 목록 텍스트 저장
+function downloadPromptsText() {
+  let text = '=== 씬별 프롬프트 목록 ===\n\n';
+  state.scenes.forEach((s, i) => {
+    text += `[씬 ${i+1}] ${s.title}\n`;
+    text += `${s.prompt}\n`;
+    text += '─'.repeat(50) + '\n\n';
+  });
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '씬별_프롬프트_목록.txt';
+  a.click();
+}
+
+// 스크립트 동적 로드
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ════════════════════════════════════════
+//  갤러리
+// ════════════════════════════════════════
+function renderGallery() {
+  const grid = document.getElementById('galleryGrid');
+  const done = state.scenes.filter(s => s.imageUrl);
+  document.getElementById('galleryCount').textContent = done.length + '장';
+
+  if (done.length === 0) {
+    grid.innerHTML = '<div class="gallery-empty">아직 생성된 이미지가 없어요.</div>';
+    return;
+  }
+
+  grid.innerHTML = done.map((s, i) => `
+    <div class="gallery-item">
+      <img src="${s.imageUrl}" alt="${s.title}" onerror="this.style.display='none'" />
+      <div class="gallery-label">씬 ${i+1}: ${s.title.substring(0,15)}</div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════
+//  유틸리티
+// ════════════════════════════════════════
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function addLog(msg, type='') {
+  const box = document.getElementById('logBox');
+  const el = document.createElement('div');
+  el.className = type ? 'log-' + type : '';
+  el.textContent = new Date().toLocaleTimeString('ko-KR') + ' ' + msg;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateProgress(done, total, label) {
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('mainProgressBar').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = `${done} / ${total}`;
+  document.getElementById('progressText').textContent = label || (done === total ? '완료!' : `진행 중 (${pct}%)`);
+}
+
+// 클릭 외부 영역으로 모달 닫기
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>
